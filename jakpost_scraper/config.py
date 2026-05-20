@@ -15,7 +15,7 @@ class ConfigError(Exception):
 
 @dataclass
 class Config:
-    sections: object = "all"  # "all" or list[str]
+    sections: str | list[str] = "all"  # "all" or a list of section identifiers
     summary_mode: str = "both"
     model: str = "claude-haiku-4-5"
     paywall: str = "keep-teaser"

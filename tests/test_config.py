@@ -49,3 +49,10 @@ def test_negative_concurrency_rejected():
 
 def test_sections_list_accepted():
     validate_config(Config(sections=["business", "news/politics"]))
+
+
+def test_sections_list_from_yaml(tmp_path):
+    path = tmp_path / "config.yaml"
+    path.write_text("sections:\n  - business\n  - news/politics\n")
+    cfg = load_config(str(path), {})
+    assert cfg.sections == ["business", "news/politics"]

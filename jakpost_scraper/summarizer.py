@@ -108,3 +108,56 @@ def _per_article_prompt(article: Article) -> str:
         f"happened, who is involved, and why it matters.{note}\n\n"
         f"Title: {article.title}\n\n{article.body}"
     )
+
+
+async def _summarize_digest(per_article_summaries: list[Summary],
+                            model: str) -> Summary:
+    """Build one digest from per-article summaries, batching when large."""
+    usable = [s for s in per_article_summaries if not s.error and s.text]
+    article_urls = [url for s in usable for url in s.article_urls]
+    if not usable:
+        return Summary(kind="digest", text="", model=model,
+                       generated_at=now_utc(), article_urls=article_urls,
+                       error="no per-article summaries were available")
+    try:
+        if len(usable) <= DIGEST_BATCH_SIZE:
+            prompt = _digest_prompt(usable)
+        else:
+            partials = await _partial_digests(usable, model)
+            prompt = _merge_digests_prompt(partials)
+        text = await _retry(lambda: _ask_claude(prompt, model))
+    except Exception as e:  # noqa: BLE001 - record failure, keep per-article work
+        return Summary(kind="digest", text="", model=model,
+                       generated_at=now_utc(), article_urls=article_urls,
+                       error=str(e))
+    return Summary(kind="digest", text=text, model=model,
+                   generated_at=now_utc(), article_urls=article_urls)
+
+
+async def _partial_digests(usable: list[Summary], model: str) -> list[str]:
+    partials: list[str] = []
+    for start in range(0, len(usable), DIGEST_BATCH_SIZE):
+        batch = usable[start:start + DIGEST_BATCH_SIZE]
+        partials.append(
+            await _retry(lambda b=batch: _ask_claude(_digest_prompt(b), model)))
+    return partials
+
+
+def _digest_prompt(summaries: list[Summary]) -> str:
+    items = "\n\n".join(f"- {s.text}" for s in summaries)
+    return (
+        "Below are short summaries of news articles published in the last day. "
+        "Write a daily news briefing: a one-paragraph overview at the top, then "
+        "the stories grouped into themes under short Markdown headings. Keep it "
+        f"tight and readable.\n\n{items}"
+    )
+
+
+def _merge_digests_prompt(partials: list[str]) -> str:
+    joined = "\n\n---\n\n".join(partials)
+    return (
+        "Below are several partial news briefings covering different batches of "
+        "articles from the same day. Merge them into one coherent briefing with "
+        "a one-paragraph overview at the top and theme headings, removing "
+        f"redundancy.\n\n{joined}"
+    )

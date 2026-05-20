@@ -1,10 +1,13 @@
 """Article page scraping and field extraction."""
 
 import json
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 
 from bs4 import BeautifulSoup
 
+from .discovery import DiscoveredArticle
+from .http_client import HttpClient
 from .models import Article, now_utc, parse_date, to_utc
 
 _ARTICLE_TYPES = {"NewsArticle", "Article", "ReportageNewsArticle"}
@@ -134,3 +137,46 @@ def _extract_body(soup: BeautifulSoup) -> str:
         for p in content.find_all("p")
     ]
     return "\n\n".join(p for p in paragraphs if p)
+
+
+def scrape_articles(http: HttpClient, discovered: list[DiscoveredArticle],
+                    concurrency: int, paywall_mode: str
+                    ) -> tuple[list[Article], list[str], list[str]]:
+    """Fetch and parse discovered articles concurrently.
+
+    Returns (articles, failed_urls, skipped_paywall_urls). With
+    paywall_mode="skip", paywalled articles are excluded and their URLs go to
+    skipped_paywall_urls; with "keep-teaser" they are kept in articles.
+    """
+    if not discovered:
+        return [], [], []
+
+    results: dict[str, Article] = {}
+    failed_urls: list[str] = []
+
+    def _fetch(item: DiscoveredArticle) -> Article:
+        html = http.get(item.url).text
+        return parse_article(item.url, html, item.section, item.published_at)
+
+    with ThreadPoolExecutor(max_workers=max(1, concurrency)) as pool:
+        future_map = {pool.submit(_fetch, d): d for d in discovered}
+        for future in as_completed(future_map):
+            item = future_map[future]
+            try:
+                results[item.url] = future.result()
+            except Exception:  # noqa: BLE001 - any failure means skip this article
+                failed_urls.append(item.url)
+
+    articles: list[Article] = []
+    skipped_paywall_urls: list[str] = []
+    for item in discovered:  # preserve discovery order
+        article = results.get(item.url)
+        if article is None:
+            continue
+        if article.is_paywalled and paywall_mode == "skip":
+            skipped_paywall_urls.append(article.url)
+        else:
+            articles.append(article)
+
+    failed_urls.sort()
+    return articles, failed_urls, skipped_paywall_urls

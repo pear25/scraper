@@ -1,0 +1,14 @@
+# Jakarta Post scraper configuration. All keys are optional; defaults shown.
+sections: all              # "all" or a list of section identifiers
+summary_mode: both         # per-article | digest | both
+model: claude-haiku-4-5    # Claude model for summarization
+paywall: keep-teaser       # keep-teaser | skip
+request_delay: 1.0         # seconds between HTTP requests
+concurrency: 4             # max concurrent article fetches / summary calls
+lookback_buffer_minutes: 20
+seen_url_retention_days: 30
+http_timeout: 15           # seconds
+http_retries: 3            # attempts per request
+data_dir: ./data
+reports_dir: ./reports
+state_file: ./state.json

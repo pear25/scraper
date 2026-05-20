@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "jakpost-scraper"
+version = "0.1.0"
+description = "Scrape and summarize The Jakarta Post articles"
+requires-python = ">=3.11"
+dependencies = [
+    "httpx",
+    "beautifulsoup4",
+    "lxml",
+    "python-dateutil",
+    "pyyaml",
+    "claude-agent-sdk",
+]
+
+[project.optional-dependencies]
+dev = ["pytest", "pytest-httpx"]
+
+[project.scripts]
+jakpost-scrape = "jakpost_scraper.cli:cli_entry"
+
+[tool.setuptools]
+packages = ["jakpost_scraper"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

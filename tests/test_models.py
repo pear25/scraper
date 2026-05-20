@@ -66,3 +66,13 @@ def test_run_result_defaults():
     assert r.discovered == 0
     assert r.failed_urls == []
     assert r.articles == []
+
+
+def test_article_round_trip_with_now_utc_timestamps():
+    ts = now_utc()
+    art = Article(
+        url="https://example.com/a.html", title="T", section="business",
+        published_at=ts, authors=[], body="B", is_paywalled=True,
+        lead_image_url=None, scraped_at=ts,
+    )
+    assert Article.from_dict(art.to_dict()) == art

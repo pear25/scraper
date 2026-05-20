@@ -7,8 +7,9 @@ from dateutil import parser as _dateparser
 
 
 def now_utc() -> datetime:
-    """Return the current time as a timezone-aware UTC datetime."""
-    return datetime.now(timezone.utc)
+    """Return the current time as a UTC-aware datetime, truncated to whole
+    seconds (the canonical precision for all persisted timestamps)."""
+    return datetime.now(timezone.utc).replace(microsecond=0)
 
 
 def to_utc(dt: datetime) -> datetime:

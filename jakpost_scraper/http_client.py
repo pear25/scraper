@@ -4,10 +4,7 @@ import time
 
 import httpx
 
-USER_AGENT = (
-    "jakpost-scraper/0.1 (news summarizer bot; "
-    "contact: configure in http_client.py)"
-)
+USER_AGENT = "jakpost-scraper/0.1 (news summarizer bot)"
 RETRY_STATUSES = {429, 500, 502, 503, 504}
 
 

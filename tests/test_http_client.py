@@ -1,3 +1,4 @@
+import httpx
 import pytest
 
 from jakpost_scraper.http_client import HttpClient, HttpError
@@ -38,3 +39,23 @@ def test_get_raises_immediately_on_404(httpx_mock):
     with _client() as client:
         with pytest.raises(HttpError):
             client.get("https://example.com/p")
+
+
+def test_get_honors_retry_after_header(httpx_mock, monkeypatch):
+    sleeps = []
+    monkeypatch.setattr("jakpost_scraper.http_client.time.sleep",
+                        lambda s: sleeps.append(s))
+    httpx_mock.add_response(url="https://example.com/p", status_code=503,
+                            headers={"Retry-After": "30"})
+    httpx_mock.add_response(url="https://example.com/p", text="ok")
+    with _client() as client:
+        assert client.get("https://example.com/p").text == "ok"
+    assert sleeps == [30.0]
+
+
+def test_get_retries_on_network_error(httpx_mock):
+    httpx_mock.add_exception(httpx.ConnectError("boom"),
+                             url="https://example.com/p")
+    httpx_mock.add_response(url="https://example.com/p", text="recovered")
+    with _client() as client:
+        assert client.get("https://example.com/p").text == "recovered"

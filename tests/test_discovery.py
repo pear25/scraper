@@ -127,3 +127,40 @@ def test_discover_warns_when_no_news_sitemaps(httpx_mock, capsys):
         articles, skipped = discover(client, "all", since, NOW, set())
     assert articles == []
     assert "structure may have changed" in capsys.readouterr().err
+
+
+def test_discover_skips_entry_with_unparseable_date(httpx_mock):
+    httpx_mock.add_response(url=INDEX_URL,
+                            content=(FIXTURES / "sitemap_index.xml").read_bytes())
+    bad_date_sitemap = (
+        b'<?xml version="1.0" encoding="utf-8"?>'
+        b'<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" '
+        b'xmlns:news="http://www.google.com/schemas/sitemap-news/0.9">'
+        b'<url><loc>https://www.thejakartapost.com/business/2026/05/20/good.html</loc>'
+        b'<news:news><news:publication_date>2026-05-20T10:00:00+07:00'
+        b'</news:publication_date></news:news></url>'
+        b'<url><loc>https://www.thejakartapost.com/business/2026/05/20/bad.html</loc>'
+        b'<news:news><news:publication_date>not a valid date</news:publication_date>'
+        b'</news:news></url>'
+        b'</urlset>'
+    )
+    httpx_mock.add_response(url=BIZ_URL, content=bad_date_sitemap)
+    since = datetime(2026, 5, 19, 12, 0, 0, tzinfo=timezone.utc)
+    with _client() as client:
+        articles, skipped = discover(client, ["business"], since, NOW, set())
+    assert [a.url for a in articles] == [
+        "https://www.thejakartapost.com/business/2026/05/20/good.html"]
+    assert skipped == []
+
+
+def test_discover_skips_section_with_malformed_xml(httpx_mock):
+    httpx_mock.add_response(url=INDEX_URL,
+                            content=(FIXTURES / "sitemap_index.xml").read_bytes())
+    httpx_mock.add_response(url=BIZ_URL,
+                            content=(FIXTURES / "news_sitemap_business.xml").read_bytes())
+    httpx_mock.add_response(url=POL_URL, content=b"<urlset><broken")
+    since = datetime(2026, 5, 19, 12, 0, 0, tzinfo=timezone.utc)
+    with _client() as client:
+        articles, skipped = discover(client, "all", since, NOW, set())
+    assert skipped == ["news/politics"]
+    assert len(articles) == 2

@@ -57,8 +57,9 @@ def compute_window(last_run_at: datetime | None, since_override: datetime | None
     return since, until
 
 
-def discover(http: HttpClient, sections, since: datetime, until: datetime,
-             seen_urls: set[str], index_url: str = SITEMAP_INDEX_URL
+def discover(http: HttpClient, sections: str | list[str], since: datetime,
+             until: datetime, seen_urls: set[str],
+             index_url: str = SITEMAP_INDEX_URL
              ) -> tuple[list[DiscoveredArticle], list[str]]:
     """Discover articles in [since, until]. Returns (articles, skipped_sections)."""
     try:
@@ -70,6 +71,10 @@ def discover(http: HttpClient, sections, since: datetime, until: datetime,
         url for url in _parse_sitemap_index(index_xml)
         if _NEWS_SITEMAP_RE.search(url)
     ]
+    if not news_sitemaps:
+        print("WARNING: no news sitemaps found in the sitemap index — "
+              "The Jakarta Post's sitemap structure may have changed.",
+              file=sys.stderr)
     if sections != "all":
         wanted = set(sections)
         news_sitemaps = [
@@ -77,21 +82,17 @@ def discover(http: HttpClient, sections, since: datetime, until: datetime,
             if _section_from_sitemap_url(url) in wanted
         ]
 
-    if not news_sitemaps:
-        print("WARNING: no news sitemaps found in the sitemap index — "
-              "The Jakarta Post's sitemap structure may have changed.",
-              file=sys.stderr)
-
     discovered: dict[str, DiscoveredArticle] = {}
     skipped: list[str] = []
     for sitemap_url in news_sitemaps:
         section = _section_from_sitemap_url(sitemap_url)
         try:
             sitemap_xml = http.get(sitemap_url).content
-        except HttpError:
+            entries = _parse_news_sitemap(sitemap_xml)
+        except (HttpError, etree.XMLSyntaxError):
             skipped.append(section)
             continue
-        for url, published_at in _parse_news_sitemap(sitemap_xml):
+        for url, published_at in entries:
             if url in seen_urls or url in discovered:
                 continue
             if any(seg in url for seg in EXCLUDED_PATH_SEGMENTS):
@@ -124,5 +125,9 @@ def _parse_news_sitemap(xml_bytes: bytes) -> list[tuple[str, datetime]]:
         pub = url_el.find("news:news/news:publication_date", namespaces=SITEMAP_NS)
         if loc is None or loc.text is None or pub is None or pub.text is None:
             continue
-        results.append((loc.text.strip(), parse_date(pub.text.strip())))
+        try:
+            published_at = parse_date(pub.text.strip())
+        except (ValueError, OverflowError):
+            continue
+        results.append((loc.text.strip(), published_at))
     return results

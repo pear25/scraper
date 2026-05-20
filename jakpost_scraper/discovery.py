@@ -19,6 +19,8 @@ _NEWS_SITEMAP_RE = re.compile(r"/news/sitemap\.xml$")
 _DURATION_RE = re.compile(r"(\d+)([hd])")
 # Advertorial/sponsored content, not news — excluded from discovery.
 EXCLUDED_PATH_SEGMENTS = ("/adv/",)
+# Hardened parser for remote sitemap XML: no entity resolution, no network.
+_XML_PARSER = etree.XMLParser(resolve_entities=False, no_network=True)
 
 
 class DiscoveryError(Exception):
@@ -109,7 +111,7 @@ def _section_from_sitemap_url(url: str) -> str:
 
 
 def _parse_sitemap_index(xml_bytes: bytes) -> list[str]:
-    root = etree.fromstring(xml_bytes)
+    root = etree.fromstring(xml_bytes, parser=_XML_PARSER)
     return [
         loc.text.strip()
         for loc in root.findall("sm:sitemap/sm:loc", namespaces=SITEMAP_NS)
@@ -118,7 +120,7 @@ def _parse_sitemap_index(xml_bytes: bytes) -> list[str]:
 
 
 def _parse_news_sitemap(xml_bytes: bytes) -> list[tuple[str, datetime]]:
-    root = etree.fromstring(xml_bytes)
+    root = etree.fromstring(xml_bytes, parser=_XML_PARSER)
     results: list[tuple[str, datetime]] = []
     for url_el in root.findall("sm:url", namespaces=SITEMAP_NS):
         loc = url_el.find("sm:loc", namespaces=SITEMAP_NS)

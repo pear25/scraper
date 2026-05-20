@@ -89,7 +89,7 @@ async def _ask_claude(prompt: str, model: str) -> str:
 
 async def _retry(coro_factory, attempts: int = 2):
     """Await coro_factory(), retrying up to `attempts` times total."""
-    last_error: Exception | None = None
+    last_error: Exception = RuntimeError("_retry requires attempts >= 1")
     for _ in range(attempts):
         try:
             return await coro_factory()

@@ -90,6 +90,11 @@ def run(config: Config, state: State, args: argparse.Namespace) -> RunResult:
     write_summaries_json(result, config)
     write_markdown_report(result, config)
 
+    if args.limit is not None:
+        print("Note: --limit was set — this is a non-destructive sample run; "
+              "state was not advanced.", file=sys.stderr)
+        return result
+
     state.last_run_at = until
     for article in articles:
         state.seen_urls[article.url] = until

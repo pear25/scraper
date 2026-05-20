@@ -103,3 +103,20 @@ def test_dry_run_writes_no_state(httpx_mock, tmp_path):
     result = cli.run(config, load_state(config.state_file), _args(dry_run=True))
     assert result.discovered == 4
     assert not os.path.exists(config.state_file)
+
+
+def test_limit_run_does_not_advance_state(httpx_mock, tmp_path):
+    config = _config(tmp_path)
+    _add_sitemaps(httpx_mock)
+    free_html = (FIXTURES / "article_free.html").read_text(encoding="utf-8")
+    # --limit 2 scrapes only the first two discovered articles (business sitemap).
+    httpx_mock.add_response(
+        url="https://www.thejakartapost.com/business/2026/05/20/in-window-one.html",
+        text=free_html)
+    httpx_mock.add_response(
+        url="https://www.thejakartapost.com/business/2026/05/20/in-window-two.html",
+        text=free_html)
+    result = cli.run(config, load_state(config.state_file), _args(limit=2))
+    assert result.discovered == 4
+    assert result.scraped == 2
+    assert not os.path.exists(config.state_file)

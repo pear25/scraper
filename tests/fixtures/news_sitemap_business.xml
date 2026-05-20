@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:news="http://www.google.com/schemas/sitemap-news/0.9">
+  <url>
+    <loc>
+      <![CDATA[https://www.thejakartapost.com/business/2026/05/20/in-window-one.html]]>
+    </loc>
+    <news:news>
+      <news:publication><news:name><![CDATA[ The Jakarta Post ]]></news:name><news:language><![CDATA[ en ]]></news:language></news:publication>
+      <news:publication_date><![CDATA[2026-05-20T10:00:00+07:00]]></news:publication_date>
+      <news:title><![CDATA[In window one]]></news:title>
+    </news:news>
+  </url>
+  <url>
+    <loc>
+      <![CDATA[https://www.thejakartapost.com/business/2026/05/20/in-window-two.html]]>
+    </loc>
+    <news:news>
+      <news:publication><news:name><![CDATA[ The Jakarta Post ]]></news:name><news:language><![CDATA[ en ]]></news:language></news:publication>
+      <news:publication_date><![CDATA[2026-05-20T08:00:00+07:00]]></news:publication_date>
+      <news:title><![CDATA[In window two]]></news:title>
+    </news:news>
+  </url>
+  <url>
+    <loc>
+      <![CDATA[https://www.thejakartapost.com/business/2026/05/18/too-old.html]]>
+    </loc>
+    <news:news>
+      <news:publication><news:name><![CDATA[ The Jakarta Post ]]></news:name><news:language><![CDATA[ en ]]></news:language></news:publication>
+      <news:publication_date><![CDATA[2026-05-18T09:00:00+07:00]]></news:publication_date>
+      <news:title><![CDATA[Too old]]></news:title>
+    </news:news>
+  </url>
+  <url>
+    <loc>
+      <![CDATA[https://www.thejakartapost.com/adv/2026/05/20/sponsored-content.html]]>
+    </loc>
+    <news:news>
+      <news:publication><news:name><![CDATA[ The Jakarta Post ]]></news:name><news:language><![CDATA[ en ]]></news:language></news:publication>
+      <news:publication_date><![CDATA[2026-05-20T09:00:00+07:00]]></news:publication_date>
+      <news:title><![CDATA[Sponsored content]]></news:title>
+    </news:news>
+  </url>
+</urlset>

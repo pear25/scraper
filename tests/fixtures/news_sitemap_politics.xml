@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:news="http://www.google.com/schemas/sitemap-news/0.9">
+  <url>
+    <loc>
+      <![CDATA[https://www.thejakartapost.com/news/politics/2026/05/20/politics-one.html]]>
+    </loc>
+    <news:news>
+      <news:publication><news:name><![CDATA[ The Jakarta Post ]]></news:name><news:language><![CDATA[ en ]]></news:language></news:publication>
+      <news:publication_date><![CDATA[2026-05-20T11:00:00+07:00]]></news:publication_date>
+      <news:title><![CDATA[Politics one]]></news:title>
+    </news:news>
+  </url>
+  <url>
+    <loc>
+      <![CDATA[https://www.thejakartapost.com/business/2026/05/20/in-window-one.html]]>
+    </loc>
+    <news:news>
+      <news:publication><news:name><![CDATA[ The Jakarta Post ]]></news:name><news:language><![CDATA[ en ]]></news:language></news:publication>
+      <news:publication_date><![CDATA[2026-05-20T10:00:00+07:00]]></news:publication_date>
+      <news:title><![CDATA[In window one duplicate]]></news:title>
+    </news:news>
+  </url>
+  <url>
+    <loc>
+      <![CDATA[https://www.thejakartapost.com/news/politics/2026/05/20/already-seen.html]]>
+    </loc>
+    <news:news>
+      <news:publication><news:name><![CDATA[ The Jakarta Post ]]></news:name><news:language><![CDATA[ en ]]></news:language></news:publication>
+      <news:publication_date><![CDATA[2026-05-20T07:00:00+07:00]]></news:publication_date>
+      <news:title><![CDATA[Already seen]]></news:title>
+    </news:news>
+  </url>
+</urlset>

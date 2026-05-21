@@ -2,7 +2,7 @@
 
 **Date:** 2026-05-21
 **Status:** Approved (design); pending implementation plan
-**Related:** [DECISIONS.md](../../../DECISIONS.md) rows D-001 through D-005
+**Related:** [DECISIONS.md](../../../DECISIONS.md) rows D-001 through D-006
 
 ## Problem
 
@@ -52,7 +52,7 @@ that imports Playwright. The rest of the codebase is unchanged.
 cli.py
   └─ load_config()                         (config.py — extended)
   └─ auth.ensure_session(config)  ──►  returns an httpx cookie jar
-        ├─ if cached cookies valid  → return them          (no browser)
+        ├─ if cached cookies file present  → load & return  (no browser)
         └─ else → launch Playwright, interactive login,
                   persist profile, extract cookies, return them
   └─ HttpClient(..., cookies=jar)           (http_client.py — extended)
@@ -79,26 +79,28 @@ is never imported and the tool behaves exactly as today.
 
 `ensure_session(config)` runs at startup, before discovery. Three paths:
 
-### 1. Cached session, still valid (common case — no browser)
+### 1. Cached session present (common case — no browser)
 
 - A persistent Playwright profile lives at `auth_profile_dir`
   (default `./.auth/profile`).
 - Extracted `thejakartapost.com` cookies live at `auth_cookies_file`
   (default `./.auth/cookies.json`).
-- `ensure_session` performs one cheap validation request: an `httpx` GET of
-  `auth_validation_url` (a known premium article), confirming the full body
-  is present (full `div.tjp-single__content`, no `div.tjp-paywall`).
-- Valid → return the cookie jar. Playwright is never launched.
+- If `auth_cookies_file` exists, `ensure_session` loads it and returns the
+  cookie jar without launching Playwright. There is **no startup validation
+  request** (see D-006): an expired session is detected mid-run by the
+  truncated-rate signal below, not pre-flight.
 
-### 2. No cached session, or validation failed (first run / expired)
+### 2. No cached session (first run), or `--reauth` forced
 
 - Launch Playwright via `launch_persistent_context(auth_profile_dir,
   headless=False)`.
 - Navigate to `auth_login_url`. The user clicks "Sign in with Google" and
-  completes login including 2FA. The script polls for a logged-in signal
-  (a known authenticated DOM element / account cookie) up to
-  `auth_login_timeout` seconds (default 300).
-- On success: extract `thejakartapost.com` cookies, write
+  completes login including 2FA. Login is a standard Google OAuth 2.0
+  Authorization Code flow. The script polls for success: the OAuth callback
+  `https://www.thejakartapost.com/login/google/process` completes and the
+  browser lands back on a `thejakartapost.com` page with session cookies
+  set. Timeout is `auth_login_timeout` seconds (default 300).
+- On success: extract **all** `thejakartapost.com` cookies, write
   `auth_cookies_file`, close the browser, return the jar.
 - On timeout or the user closing the window: raise `AuthError`; the run
   aborts with a clear message.
@@ -107,8 +109,9 @@ is never imported and the tool behaves exactly as today.
 
 If, during a run, premium articles come back truncated at a rate crossing a
 threshold (>50% of premium articles in the run), the run aborts cleanly with
-a re-auth message rather than shipping teaser text as full articles.
-Startup validation makes this rare.
+a re-auth message rather than shipping teaser text as full articles. Since
+there is no startup validation request (D-006), this mid-run signal is the
+primary mechanism for detecting an expired session.
 
 ### Lifecycle notes
 
@@ -128,7 +131,6 @@ working unchanged:
 | `auth_profile_dir` | `./.auth/profile` | Persistent Playwright browser profile. |
 | `auth_cookies_file` | `./.auth/cookies.json` | Extracted `thejakartapost.com` cookie jar. |
 | `auth_login_url` | Jakarta Post login page (exact path confirmed during implementation) | Page opened for interactive login. |
-| `auth_validation_url` | A known premium article URL (confirmed during implementation) | Used for the cheap startup session check. |
 | `auth_login_timeout` | `300` | Seconds to wait for the interactive Google login. |
 
 CLI flags (`cli.py`) for ad-hoc overrides without editing `config.yaml`:
@@ -190,8 +192,8 @@ re-auth message, distinguishing a dead session from a single odd article.
 | Situation | Behavior |
 |-----------|----------|
 | `auth_enabled=false` | Auth flow skipped entirely; guest scraping as today. |
-| Cached session valid | Return cookies; no browser launch. |
-| Cached session missing/invalid | Launch interactive login. |
+| Cached session file present | Load cookies; no browser launch, no validation request. |
+| Cached session file missing, or `--reauth` | Launch interactive login. |
 | Interactive login times out / window closed | Raise `AuthError`; run aborts with a clear message. |
 | Playwright not installed but `auth_enabled=true` | Fail fast with a message pointing to `pip install jakpost_scraper[auth]`. |
 | Mid-run session expiry (>50% premium truncated) | Abort cleanly with a re-auth message; next run re-prompts login. |
@@ -219,8 +221,21 @@ a real browser or hits the network.
 
 ## Open items for implementation
 
-- Confirm the exact Jakarta Post login URL and the logged-in DOM/cookie
-  signal used to detect successful login.
-- Choose a stable known-premium URL for `auth_validation_url`.
-- Confirm the cookie name(s) that actually authorize premium access, to
-  scope what `auth_cookies_file` needs to persist.
+- **Login URL:** Jakarta Post's own login page (the page hosting the
+  "Sign in with Google" button — exact path to confirm).
+- **Login-success signal:** the OAuth callback
+  `https://www.thejakartapost.com/login/google/process` completes and the
+  browser lands back on a `thejakartapost.com` page with session cookies
+  set. (Confirmed: standard Google OAuth 2.0 Authorization Code flow —
+  `state` is a server-issued CSRF token, which is why interactive browser
+  login is required and raw-HTTP login is not.)
+- **Cookie scope:** persist **all** `thejakartapost.com` cookies, not a
+  hardcoded subset. Authorization is known to span at least
+  `laravel_session` and `auth_token_tjp_new` (Laravel backend); the `_new`
+  suffix and a possible `XSRF-TOKEN` mean a fixed list is brittle. Saving
+  the whole domain jar is robust and harmless.
+- **Startup session validation:** deferred (D-006). `ensure_session`
+  returns cached cookies without a pre-flight validation request; an
+  expired session is caught mid-run by the >50% truncated-rate signal
+  (D-005). A startup validation check (and the known-premium URL it would
+  need) can be added when revisited.

@@ -1,6 +1,7 @@
 """Command-line entry point and run orchestration."""
 
 import argparse
+import os
 import sys
 
 from .auth import AuthError, ensure_session
@@ -41,6 +42,8 @@ def build_parser() -> argparse.ArgumentParser:
                         help="Disable authenticated scraping for this run")
     parser.add_argument("--reauth", action="store_true",
                         help="Force a fresh login even if a session is cached")
+    parser.add_argument("--reset-state", action="store_true",
+                        help="Delete state.json so the next run re-fetches all articles")
     return parser
 
 
@@ -139,6 +142,15 @@ def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     try:
         config = load_config(CONFIG_PATH, cli_overrides(args))
+        if args.reset_state:
+            try:
+                os.remove(config.state_file)
+                print(f"State reset: {config.state_file} deleted. "
+                      "Next run will re-fetch all articles.", file=sys.stderr)
+            except FileNotFoundError:
+                print(f"State already clear (no {config.state_file} found).",
+                      file=sys.stderr)
+            return 0
         state = load_state(config.state_file)
         result = run(config, state, args)
     except (ConfigError, StateError, DiscoveryError, PreflightError,

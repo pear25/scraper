@@ -106,6 +106,47 @@ def test_dry_run_writes_no_state(httpx_mock, tmp_path):
     assert not os.path.exists(config.state_file)
 
 
+def test_authenticated_run_captures_full_premium_body(tmp_path, httpx_mock,
+                                                      monkeypatch):
+    login_url = "https://www.thejakartapost.com/user/account/login"
+    monkeypatch.setenv("JAKPOST_EMAIL", "user@example.com")
+    monkeypatch.setenv("JAKPOST_PASSWORD", "secret")
+
+    # Mock the login GET then POST
+    httpx_mock.add_response(
+        url=login_url,
+        text=(FIXTURES / "login_page.html").read_text(encoding="utf-8"))
+    httpx_mock.add_response(
+        url=login_url, status_code=302,
+        headers={"set-cookie": "laravel_session=authed; Path=/"})
+
+    # Mock sitemaps and serve premium_full for all article pages
+    _add_sitemaps(httpx_mock)
+    premium_html = (FIXTURES / "article_premium_full.html").read_text(encoding="utf-8")
+    for url in ARTICLE_URLS:
+        httpx_mock.add_response(url=url, text=premium_html)
+
+    config = Config(
+        request_delay=0,
+        data_dir=str(tmp_path / "data"),
+        reports_dir=str(tmp_path / "reports"),
+        state_file=str(tmp_path / "state.json"),
+        auth_enabled=True,
+        auth_login_url=login_url,
+        auth_cookies_file=str(tmp_path / "cookies.json"),
+    )
+    state = load_state(config.state_file)
+    args = _args(no_summary=True)
+
+    result = cli.run(config, state, args)
+
+    assert result.scraped >= 1
+    # Every article from premium_full.html is premium and not truncated
+    assert all(a.is_premium is True for a in result.articles)
+    assert all(a.is_truncated is False for a in result.articles)
+    assert result.premium_full == result.scraped
+
+
 def test_limit_run_does_not_advance_state(httpx_mock, tmp_path):
     config = _config(tmp_path)
     _add_sitemaps(httpx_mock)

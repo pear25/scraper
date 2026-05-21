@@ -121,6 +121,7 @@ class RunResult:
     discovered: int = 0
     scraped: int = 0
     skipped_paywall: int = 0
+    premium_full: int = 0
     skipped_sections: list[str] = field(default_factory=list)
     failed_urls: list[str] = field(default_factory=list)
     articles: list[Article] = field(default_factory=list)

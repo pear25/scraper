@@ -109,6 +109,8 @@ def run(config: Config, state: State, args: argparse.Namespace) -> RunResult:
     result.scraped = len(articles)
     result.failed_urls = failed_urls
     result.skipped_paywall = len(skipped_paywall)
+    result.premium_full = sum(
+        1 for a in articles if a.is_premium and not a.is_truncated)
 
     write_articles_json(result, config)  # persist before summarizing
     if do_summarize:

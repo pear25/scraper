@@ -65,6 +65,33 @@ def test_write_markdown_report(tmp_path):
     assert "https://example.com/gone.html" in text
 
 
+def test_report_shows_premium_capture_counts(tmp_path):
+    from datetime import datetime, timezone
+    from jakpost_scraper.config import Config
+    from jakpost_scraper.models import Article, RunResult
+    from jakpost_scraper.output import write_markdown_report
+
+    when = datetime(2026, 5, 20, tzinfo=timezone.utc)
+
+    def _a(is_premium, is_truncated):
+        return Article(url="u" + str(id((is_premium, is_truncated))),
+                       title="t", section="s", published_at=when, authors=[],
+                       body="b", is_paywalled=is_truncated,
+                       is_premium=is_premium, is_truncated=is_truncated,
+                       lead_image_url=None, scraped_at=when)
+
+    result = RunResult(run_id="2026-05-20T00-00-00Z", since=when, until=when,
+                       summary_mode="digest")
+    result.articles = [_a(True, False), _a(True, True), _a(False, False)]
+    result.scraped = 3
+    result.premium_full = 1
+
+    cfg = Config(reports_dir=str(tmp_path))
+    path = write_markdown_report(result, cfg)
+    text = open(path, encoding="utf-8").read()
+    assert "Premium captured in full:** 1" in text
+
+
 def test_report_handles_zero_articles(tmp_path):
     cfg = Config(data_dir=str(tmp_path / "data"),
                  reports_dir=str(tmp_path / "reports"))

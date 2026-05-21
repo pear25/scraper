@@ -15,6 +15,7 @@ def _article(url: str) -> Article:
     return Article(
         url=url, title="Green roadmap", section="business", published_at=UNTIL,
         authors=["Reporter"], body="Body.", is_paywalled=False,
+        is_premium=False, is_truncated=False,
         lead_image_url=None, scraped_at=UNTIL,
     )
 

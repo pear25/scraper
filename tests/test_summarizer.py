@@ -12,6 +12,7 @@ def _article(url: str, title: str = "Title", paywalled: bool = False) -> Article
     return Article(
         url=url, title=title, section="business", published_at=PUB,
         authors=["Reporter"], body="Article body text.", is_paywalled=paywalled,
+        is_premium=paywalled, is_truncated=paywalled,
         lead_image_url=None, scraped_at=PUB,
     )
 

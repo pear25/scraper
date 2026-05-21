@@ -65,3 +65,13 @@ def test_scrape_empty_input():
         articles, failed, skipped_pw = scrape_articles(
             client, [], concurrency=2, paywall_mode="keep-teaser")
     assert articles == [] and failed == [] and skipped_pw == []
+
+
+def test_skip_mode_keys_off_truncation(httpx_mock):
+    _mock(httpx_mock)
+    with _client() as client:
+        articles, _, skipped_pw = scrape_articles(
+            client, _discovered(), concurrency=2, paywall_mode="skip")
+    # PAY_URL is truncated (paywall div) -> skipped; FREE_URL kept.
+    assert skipped_pw == [PAY_URL]
+    assert all(a.is_truncated is False for a in articles)

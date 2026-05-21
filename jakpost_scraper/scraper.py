@@ -28,7 +28,8 @@ def parse_article(url: str, html: str, section: str,
     published_at = _extract_published_at(jsonld, fallback_published_at)
     authors = _extract_authors(jsonld)
     lead_image = _extract_lead_image(soup, jsonld)
-    is_paywalled = _detect_paywall(soup, jsonld)  # before body extraction mutates soup
+    is_premium = _detect_premium(jsonld)  # before body extraction mutates soup
+    is_truncated = _detect_truncated(soup)
     body = _extract_body(soup)
     return Article(
         url=url,
@@ -37,7 +38,9 @@ def parse_article(url: str, html: str, section: str,
         published_at=published_at,
         authors=authors,
         body=body,
-        is_paywalled=is_paywalled,
+        is_paywalled=is_truncated,
+        is_premium=is_premium,
+        is_truncated=is_truncated,
         lead_image_url=lead_image,
         scraped_at=now_utc(),
     )
@@ -107,10 +110,16 @@ def _extract_lead_image(soup: BeautifulSoup, jsonld: dict) -> str | None:
     return None
 
 
-def _detect_paywall(soup: BeautifulSoup, jsonld: dict) -> bool:
+def _detect_premium(jsonld: dict) -> bool:
+    """True if the article is gated content (JSON-LD isAccessibleForFree=false)."""
     flag = jsonld.get("isAccessibleForFree")
-    if flag is not None:
-        return str(flag).strip().lower() in ("false", "0", "no")
+    if flag is None:
+        return False
+    return str(flag).strip().lower() in ("false", "0", "no")
+
+
+def _detect_truncated(soup: BeautifulSoup) -> bool:
+    """True if this fetched page did not return the full body (paywall block present)."""
     return soup.select_one("div.tjp-paywall") is not None
 
 

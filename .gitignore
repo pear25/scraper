@@ -6,3 +6,5 @@ venv/
 data/
 reports/
 state.json
+.auth/
+.env

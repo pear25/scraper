@@ -43,6 +43,8 @@ class Article:
     authors: list[str]
     body: str
     is_paywalled: bool
+    is_premium: bool
+    is_truncated: bool
     lead_image_url: str | None
     scraped_at: datetime
 
@@ -55,12 +57,15 @@ class Article:
             "authors": list(self.authors),
             "body": self.body,
             "is_paywalled": self.is_paywalled,
+            "is_premium": self.is_premium,
+            "is_truncated": self.is_truncated,
             "lead_image_url": self.lead_image_url,
             "scraped_at": dt_to_iso(self.scraped_at),
         }
 
     @classmethod
     def from_dict(cls, d: dict) -> "Article":
+        is_paywalled = d["is_paywalled"]
         return cls(
             url=d["url"],
             title=d["title"],
@@ -68,7 +73,9 @@ class Article:
             published_at=iso_to_dt(d["published_at"]),
             authors=list(d["authors"]),
             body=d["body"],
-            is_paywalled=d["is_paywalled"],
+            is_paywalled=is_paywalled,
+            is_premium=d.get("is_premium", is_paywalled),
+            is_truncated=d.get("is_truncated", is_paywalled),
             lead_image_url=d["lead_image_url"],
             scraped_at=iso_to_dt(d["scraped_at"]),
         )
@@ -114,6 +121,7 @@ class RunResult:
     discovered: int = 0
     scraped: int = 0
     skipped_paywall: int = 0
+    premium_full: int = 0
     skipped_sections: list[str] = field(default_factory=list)
     failed_urls: list[str] = field(default_factory=list)
     articles: list[Article] = field(default_factory=list)

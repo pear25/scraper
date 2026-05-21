@@ -55,3 +55,33 @@ def test_parse_article_falls_back_when_no_jsonld():
     assert art.published_at == FALLBACK
     assert art.authors == []
     assert art.body == "Only paragraph."
+
+
+def _premium_full_html():
+    return (FIXTURES / "article_premium_full.html").read_text(encoding="utf-8")
+
+
+def test_paywalled_article_is_premium_and_truncated():
+    art = parse_article("https://example.com/pay.html", _paywalled_html(),
+                        "business", FALLBACK)
+    assert art.is_premium is True
+    assert art.is_truncated is True
+    assert art.is_paywalled is True
+
+
+def test_premium_full_article_is_premium_but_not_truncated():
+    art = parse_article("https://example.com/full.html", _premium_full_html(),
+                        "business", FALLBACK)
+    assert art.is_premium is True
+    assert art.is_truncated is False
+    assert art.is_paywalled is False
+    assert art.body.startswith("Bank Indonesia raised its benchmark rate")
+    assert "persistent inflation pressure" in art.body
+
+
+def test_free_article_is_neither_premium_nor_truncated():
+    art = parse_article("https://example.com/free.html", _free_html(),
+                        "business", FALLBACK)
+    assert art.is_premium is False
+    assert art.is_truncated is False
+    assert art.is_paywalled is False

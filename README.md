@@ -50,3 +50,36 @@ python -m pytest
 ```
 
 The suite uses no live network and makes no live Claude calls.
+
+## Authenticated scraping (premium articles)
+
+By default the scraper runs as a guest, so premium articles return only a
+teaser. To capture full premium article bodies, log in with your own Jakarta
+Post account.
+
+**Set your credentials** in a `.env` file at the project root (gitignored —
+never committed):
+
+```bash
+cp .env.example .env
+# then edit .env with your real email and password
+```
+
+```ini
+JAKPOST_EMAIL=you@example.com
+JAKPOST_PASSWORD=your-password
+```
+
+The scraper loads `.env` automatically at startup via `python-dotenv`. You can
+also set the variables directly in the environment if you prefer (env vars
+already set take precedence over `.env`).
+
+**Enable it** — set `auth_enabled: true` in `config.yaml`, or pass `--auth`
+on a single run.
+
+The scraper logs in over HTTP on the first run and caches the session to
+`.auth/` (gitignored), reusing it on later runs. When the session expires,
+the run aborts with a message — re-run with `--reauth` to log in again.
+
+Authentication is entirely opt-in: with `auth_enabled: false` (the default)
+the scraper behaves exactly as before.

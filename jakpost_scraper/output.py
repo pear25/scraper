@@ -79,7 +79,8 @@ def _render_report(result: RunResult) -> list[str]:
         f"**Window:** {dt_to_iso(result.since)} → {dt_to_iso(result.until)}  ",
         (f"**Discovered:** {result.discovered}  |  **Scraped:** {result.scraped}"
          f"  |  **Failed:** {len(result.failed_urls)}  |  "
-         f"**Skipped (paywall):** {result.skipped_paywall}  "),
+         f"**Skipped (paywall):** {result.skipped_paywall}  |  "
+         f"**Premium captured in full:** {result.premium_full}  "),
         f"**Summary mode:** {result.summary_mode}",
         "",
     ]

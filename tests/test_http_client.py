@@ -59,3 +59,21 @@ def test_get_retries_on_network_error(httpx_mock):
     httpx_mock.add_response(url="https://example.com/p", text="recovered")
     with _client() as client:
         assert client.get("https://example.com/p").text == "recovered"
+
+
+def test_cookies_are_sent_on_requests(httpx_mock):
+    httpx_mock.add_response(url="https://example.com/p", text="ok")
+    client = HttpClient(timeout=5, retries=3, request_delay=0,
+                        cookies={"laravel_session": "abc123"})
+    with client:
+        client.get("https://example.com/p")
+    request = httpx_mock.get_request()
+    assert request.headers["cookie"] == "laravel_session=abc123"
+
+
+def test_no_cookies_means_no_cookie_header(httpx_mock):
+    httpx_mock.add_response(url="https://example.com/p", text="ok")
+    with _client() as client:
+        client.get("https://example.com/p")
+    request = httpx_mock.get_request()
+    assert "cookie" not in request.headers

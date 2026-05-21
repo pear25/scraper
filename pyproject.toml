@@ -13,6 +13,7 @@ dependencies = [
     "lxml",
     "python-dateutil",
     "pyyaml",
+    "python-dotenv",
     "claude-agent-sdk",
 ]
 

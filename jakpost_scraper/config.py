@@ -28,6 +28,9 @@ class Config:
     data_dir: str = "./data"
     reports_dir: str = "./reports"
     state_file: str = "./state.json"
+    auth_enabled: bool = False
+    auth_login_url: str = "https://www.thejakartapost.com/user/account/login"
+    auth_cookies_file: str = "./.auth/cookies.json"
 
 
 def load_config(config_path: str | None, cli_overrides: dict) -> Config:

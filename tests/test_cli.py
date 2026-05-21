@@ -34,3 +34,51 @@ def test_cli_overrides_extracts_config_keys():
 def test_cli_overrides_empty_when_no_flags():
     args = build_parser().parse_args([])
     assert cli_overrides(args) == {}
+
+
+def test_auth_flags_parse():
+    from jakpost_scraper.cli import build_parser
+    args = build_parser().parse_args(["--auth", "--reauth"])
+    assert args.auth is True
+    assert args.reauth is True
+
+
+def test_no_auth_flag_parses():
+    from jakpost_scraper.cli import build_parser
+    args = build_parser().parse_args(["--no-auth"])
+    assert args.auth is False
+
+
+def test_auth_defaults_to_none_when_unset():
+    from jakpost_scraper.cli import build_parser
+    args = build_parser().parse_args([])
+    assert args.auth is None
+    assert args.reauth is False
+
+
+def _article(is_premium, is_truncated):
+    from datetime import datetime, timezone
+    from jakpost_scraper.models import Article
+    when = datetime(2026, 5, 20, tzinfo=timezone.utc)
+    return Article(url="u", title="t", section="s", published_at=when,
+                   authors=[], body="b", is_paywalled=is_truncated,
+                   is_premium=is_premium, is_truncated=is_truncated,
+                   lead_image_url=None, scraped_at=when)
+
+
+def test_session_looks_dead_when_majority_premium_truncated():
+    from jakpost_scraper.cli import _session_looks_dead
+    arts = [_article(True, True), _article(True, True), _article(True, False)]
+    assert _session_looks_dead(arts) is True
+
+
+def test_session_ok_when_minority_truncated():
+    from jakpost_scraper.cli import _session_looks_dead
+    arts = [_article(True, False), _article(True, False), _article(True, True)]
+    assert _session_looks_dead(arts) is False
+
+
+def test_session_ok_when_no_premium_articles():
+    from jakpost_scraper.cli import _session_looks_dead
+    arts = [_article(False, False), _article(False, False)]
+    assert _session_looks_dead(arts) is False

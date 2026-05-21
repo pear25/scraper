@@ -3,6 +3,7 @@
 import argparse
 import sys
 
+from .auth import AuthError, ensure_session
 from .config import Config, ConfigError, load_config
 from .discovery import DiscoveryError, compute_window, discover, parse_since_arg
 from .http_client import HttpClient
@@ -34,18 +35,36 @@ def build_parser() -> argparse.ArgumentParser:
                         help="Process at most N articles (testing aid)")
     parser.add_argument("--sections",
                         help="Comma-separated section identifiers (testing aid)")
+    parser.add_argument("--auth", dest="auth", action="store_true", default=None,
+                        help="Enable authenticated scraping for this run")
+    parser.add_argument("--no-auth", dest="auth", action="store_false",
+                        help="Disable authenticated scraping for this run")
+    parser.add_argument("--reauth", action="store_true",
+                        help="Force a fresh login even if a session is cached")
     return parser
 
 
 def cli_overrides(args: argparse.Namespace) -> dict:
-    """Extract config overrides (summary_mode, sections) from parsed args."""
+    """Extract config overrides (summary_mode, sections, auth) from parsed args."""
     overrides: dict = {}
     if args.summary_mode is not None:
         overrides["summary_mode"] = args.summary_mode
     if args.sections is not None:
         overrides["sections"] = [s.strip() for s in args.sections.split(",")
                                  if s.strip()]
+    if args.auth is not None:
+        overrides["auth_enabled"] = args.auth
     return overrides
+
+
+def _session_looks_dead(articles: list) -> bool:
+    """True if a majority of premium articles came back truncated — the signal
+    that an authenticated session has expired mid-run (see D-005)."""
+    premium = [a for a in articles if a.is_premium]
+    if not premium:
+        return False
+    truncated = sum(1 for a in premium if a.is_truncated)
+    return truncated > len(premium) / 2
 
 
 def run(config: Config, state: State, args: argparse.Namespace) -> RunResult:
@@ -63,8 +82,12 @@ def run(config: Config, state: State, args: argparse.Namespace) -> RunResult:
     result = RunResult(run_id=run_id, since=since, until=until,
                        summary_mode=config.summary_mode)
 
+    cookies = None
+    if config.auth_enabled:
+        cookies = ensure_session(config, force_reauth=args.reauth)
+
     with HttpClient(config.http_timeout, config.http_retries,
-                    config.request_delay) as http:
+                    config.request_delay, cookies=cookies) as http:
         discovered, skipped_sections = discover(
             http, config.sections, since, until, set(state.seen_urls))
         result.skipped_sections = skipped_sections
@@ -77,6 +100,10 @@ def run(config: Config, state: State, args: argparse.Namespace) -> RunResult:
             return result
         articles, failed_urls, skipped_paywall = scrape_articles(
             http, discovered, config.concurrency, config.paywall)
+        if config.auth_enabled and _session_looks_dead(articles):
+            raise AuthError(
+                "Most premium articles came back truncated — the session has "
+                "likely expired. Re-run with --reauth to log in again.")
 
     result.articles = articles
     result.scraped = len(articles)
@@ -112,7 +139,8 @@ def main(argv: list[str] | None = None) -> int:
         config = load_config(CONFIG_PATH, cli_overrides(args))
         state = load_state(config.state_file)
         result = run(config, state, args)
-    except (ConfigError, StateError, DiscoveryError, PreflightError) as e:
+    except (ConfigError, StateError, DiscoveryError, PreflightError,
+            AuthError) as e:
         print(f"Error: {e}", file=sys.stderr)
         return 1
     if not args.dry_run:

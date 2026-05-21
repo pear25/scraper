@@ -64,7 +64,8 @@ def _config(tmp_path) -> Config:
 
 def _args(**overrides):
     defaults = dict(since=None, dry_run=False, no_summary=False,
-                    summary_mode=None, limit=None, sections=None)
+                    summary_mode=None, limit=None, sections=None,
+                    reauth=False, auth=None)
     defaults.update(overrides)
     return type("Args", (), defaults)()
 

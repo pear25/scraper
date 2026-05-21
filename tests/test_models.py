@@ -76,3 +76,27 @@ def test_article_round_trip_with_now_utc_timestamps():
         lead_image_url=None, scraped_at=ts,
     )
     assert Article.from_dict(art.to_dict()) == art
+
+
+def test_article_round_trips_premium_and_truncated_fields():
+    when = datetime(2026, 5, 20, 8, 0, 0, tzinfo=timezone.utc)
+    art = Article(
+        url="https://example.com/a",
+        title="T",
+        section="business",
+        published_at=when,
+        authors=["R"],
+        body="body",
+        is_paywalled=True,
+        is_premium=True,
+        is_truncated=True,
+        lead_image_url=None,
+        scraped_at=when,
+    )
+    d = art.to_dict()
+    assert d["is_premium"] is True
+    assert d["is_truncated"] is True
+    restored = Article.from_dict(d)
+    assert restored.is_premium is True
+    assert restored.is_truncated is True
+    assert restored.is_paywalled is True

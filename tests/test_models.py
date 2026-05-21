@@ -36,6 +36,8 @@ def test_article_to_dict_and_back():
         authors=["Jane Doe"],
         body="Body text.",
         is_paywalled=False,
+        is_premium=False,
+        is_truncated=False,
         lead_image_url="https://example.com/i.jpg",
         scraped_at=datetime(2026, 5, 20, 12, 0, 0, tzinfo=timezone.utc),
     )
@@ -73,6 +75,7 @@ def test_article_round_trip_with_now_utc_timestamps():
     art = Article(
         url="https://example.com/a.html", title="T", section="business",
         published_at=ts, authors=[], body="B", is_paywalled=True,
+        is_premium=True, is_truncated=True,
         lead_image_url=None, scraped_at=ts,
     )
     assert Article.from_dict(art.to_dict()) == art

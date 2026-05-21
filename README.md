@@ -57,13 +57,22 @@ By default the scraper runs as a guest, so premium articles return only a
 teaser. To capture full premium article bodies, log in with your own Jakarta
 Post account.
 
-**Set your credentials** as environment variables (they are never written to
-the repo):
+**Set your credentials** in a `.env` file at the project root (gitignored —
+never committed):
 
 ```bash
-export JAKPOST_EMAIL="you@example.com"
-export JAKPOST_PASSWORD="your-password"
+cp .env.example .env
+# then edit .env with your real email and password
 ```
+
+```ini
+JAKPOST_EMAIL=you@example.com
+JAKPOST_PASSWORD=your-password
+```
+
+The scraper loads `.env` automatically at startup via `python-dotenv`. You can
+also set the variables directly in the environment if you prefer (env vars
+already set take precedence over `.env`).
 
 **Enable it** — set `auth_enabled: true` in `config.yaml`, or pass `--auth`
 on a single run.

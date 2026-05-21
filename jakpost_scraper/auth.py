@@ -13,8 +13,13 @@ import os
 
 import httpx
 from bs4 import BeautifulSoup
+from dotenv import load_dotenv
 
 from .config import Config
+
+# Load .env once at import time so credentials are available in os.environ.
+# override=False means real env vars (e.g. from the shell or CI) take precedence.
+load_dotenv(override=False)
 
 # Domain whose cookies authorize premium access.
 _COOKIE_DOMAIN = "thejakartapost.com"
@@ -65,13 +70,13 @@ def _save_cookies(path: str, cookies: httpx.Cookies) -> None:
 
 
 def _credentials() -> tuple[str, str]:
-    """Read login credentials from the environment, or raise AuthError."""
+    """Read login credentials from the environment (populated from .env on import), or raise AuthError."""
     email = os.environ.get("JAKPOST_EMAIL", "").strip()
     password = os.environ.get("JAKPOST_PASSWORD", "")
     if not email:
-        raise AuthError("JAKPOST_EMAIL environment variable is not set")
+        raise AuthError("JAKPOST_EMAIL is not set — add it to .env or the environment")
     if not password:
-        raise AuthError("JAKPOST_PASSWORD environment variable is not set")
+        raise AuthError("JAKPOST_PASSWORD is not set — add it to .env or the environment")
     return email, password
 
 

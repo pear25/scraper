@@ -16,13 +16,15 @@ class HttpClient:
     """Thread-safe HTTP client with retry/backoff and a per-request delay."""
 
     def __init__(self, timeout: int, retries: int, request_delay: float,
-                 user_agent: str = USER_AGENT):
+                 user_agent: str = USER_AGENT,
+                 cookies: "httpx.Cookies | dict | None" = None):
         self.retries = retries
         self.request_delay = request_delay
         self._client = httpx.Client(
             timeout=timeout,
             headers={"User-Agent": user_agent},
             follow_redirects=True,
+            cookies=cookies,
         )
 
     def get(self, url: str) -> httpx.Response:

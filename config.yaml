@@ -12,3 +12,8 @@ http_retries: 3            # attempts per request
 data_dir: ./data
 reports_dir: ./reports
 state_file: ./state.json
+
+# Authenticated scraping (optional; off by default).
+# Set JAKPOST_EMAIL and JAKPOST_PASSWORD environment variables to use it.
+# auth_enabled: false
+# auth_login_url: "https://www.thejakartapost.com/user/account/login"

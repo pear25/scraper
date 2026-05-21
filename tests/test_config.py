@@ -56,3 +56,17 @@ def test_sections_list_from_yaml(tmp_path):
     path.write_text("sections:\n  - business\n  - news/politics\n")
     cfg = load_config(str(path), {})
     assert cfg.sections == ["business", "news/politics"]
+
+
+def test_auth_defaults_off(tmp_path):
+    cfg = load_config(str(tmp_path / "missing.yaml"), {})
+    assert cfg.auth_enabled is False
+    assert cfg.auth_cookies_file == "./.auth/cookies.json"
+    assert cfg.auth_login_url.endswith("/user/account/login")
+
+
+def test_auth_keys_load_from_yaml(tmp_path):
+    path = tmp_path / "config.yaml"
+    path.write_text("auth_enabled: true\n")
+    cfg = load_config(str(path), {})
+    assert cfg.auth_enabled is True

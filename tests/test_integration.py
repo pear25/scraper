@@ -64,7 +64,8 @@ def _config(tmp_path) -> Config:
 
 def _args(**overrides):
     defaults = dict(since=None, dry_run=False, no_summary=False,
-                    summary_mode=None, limit=None, sections=None,
+                    summary_mode=None, console_output=None,
+                    limit=None, sections=None,
                     reauth=False, auth=None)
     defaults.update(overrides)
     return type("Args", (), defaults)()
@@ -162,3 +163,24 @@ def test_limit_run_does_not_advance_state(httpx_mock, tmp_path):
     assert result.discovered == 4
     assert result.scraped == 2
     assert not os.path.exists(config.state_file)
+
+
+def test_console_output_emits_article_text_to_stdout(httpx_mock, tmp_path,
+                                                     capsys):
+    config = _config(tmp_path)
+    _add_sitemaps(httpx_mock)
+    free_html = (FIXTURES / "article_free.html").read_text(encoding="utf-8")
+    httpx_mock.add_response(
+        url="https://www.thejakartapost.com/business/2026/05/20/in-window-one.html",
+        text=free_html)
+    result = cli.run(
+        config,
+        load_state(config.state_file),
+        _args(no_summary=True, limit=1, console_output="article-text"),
+    )
+
+    out = capsys.readouterr().out
+    assert result.scraped == 1
+    assert "Title:" in out
+    assert "URL:" in out
+    assert "The government announced a new roadmap on Wednesday." in out

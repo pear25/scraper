@@ -7,6 +7,7 @@ def test_parser_defaults():
     assert args.dry_run is False
     assert args.no_summary is False
     assert args.summary_mode is None
+    assert args.console_output is None
     assert args.limit is None
     assert args.sections is None
 
@@ -14,13 +15,20 @@ def test_parser_defaults():
 def test_parser_flags():
     args = build_parser().parse_args(
         ["--since", "24h", "--dry-run", "--no-summary",
-         "--summary-mode", "digest", "--limit", "5", "--sections", "business"])
+         "--summary-mode", "digest", "--console-output", "article-text",
+         "--limit", "5", "--sections", "business"])
     assert args.since == "24h"
     assert args.dry_run is True
     assert args.no_summary is True
     assert args.summary_mode == "digest"
+    assert args.console_output == "article-text"
     assert args.limit == 5
     assert args.sections == "business"
+
+
+def test_console_output_flag_parses():
+    args = build_parser().parse_args(["--console-output", "article-text"])
+    assert args.console_output == "article-text"
 
 
 def test_cli_overrides_extracts_config_keys():

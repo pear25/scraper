@@ -4,7 +4,8 @@ from datetime import datetime, timezone
 from jakpost_scraper.config import Config
 from jakpost_scraper.models import Article, RunResult, Summary
 from jakpost_scraper.output import (
-    write_articles_json, write_summaries_json, write_markdown_report,
+    render_articles_text, write_articles_json, write_summaries_json,
+    write_markdown_report,
 )
 
 SINCE = datetime(2026, 5, 19, 12, 0, 0, tzinfo=timezone.utc)
@@ -63,6 +64,31 @@ def test_write_markdown_report(tmp_path):
     assert "Green roadmap" in text
     assert "A summary." in text
     assert "https://example.com/gone.html" in text
+
+
+def test_render_articles_text_includes_title_url_and_body():
+    article = _article("https://example.com/a.html")
+
+    text = render_articles_text([article])
+
+    assert "Title: Green roadmap" in text
+    assert "URL: https://example.com/a.html" in text
+    assert "Body:" in text
+    assert "Body." in text
+
+
+def test_render_articles_text_separates_multiple_articles():
+    text = render_articles_text([
+        _article("https://example.com/a.html"),
+        _article("https://example.com/b.html"),
+    ])
+
+    assert text.count("Title: Green roadmap") == 2
+    assert "\n\n---\n\n" in text
+
+
+def test_render_articles_text_empty_for_no_articles():
+    assert render_articles_text([]) == ""
 
 
 def test_report_shows_premium_capture_counts(tmp_path):

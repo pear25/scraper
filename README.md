@@ -27,6 +27,7 @@ jakpost-scrape --dry-run             # list what would be scraped
 jakpost-scrape --no-summary          # scrape only, skip summarization
 jakpost-scrape --since 48h           # override the window (also accepts ISO dates)
 jakpost-scrape --summary-mode digest # per-article | digest | both
+jakpost-scrape --console-output article-text # print title + URL + raw body to stdout
 jakpost-scrape --limit 5             # cap article count
 jakpost-scrape --sections business   # restrict sections
 ```
@@ -39,6 +40,9 @@ jakpost-scrape --sections business   # restrict sections
 4. Summarizes via the Claude Agent SDK (`per-article`, `digest`, or `both`).
 5. Writes `data/articles/<run-id>.json`, `data/summaries/<run-id>.json`, and
    `reports/<run-id>.md`, then advances `state.json`.
+
+`--console-output article-text` keeps those file outputs and also writes each
+scraped article to stdout with its title, URL, and raw body text.
 
 Configuration lives in `config.yaml`. See
 `docs/superpowers/specs/2026-05-20-jakpost-scraper-design.md` for the full design.

@@ -10,7 +10,8 @@ from .discovery import DiscoveryError, compute_window, discover, parse_since_arg
 from .http_client import HttpClient
 from .models import RunResult, dt_to_iso, now_utc
 from .output import (
-    report_path, write_articles_json, write_markdown_report, write_summaries_json,
+    render_articles_text, report_path, write_articles_json,
+    write_markdown_report, write_summaries_json,
 )
 from .scraper import scrape_articles
 from .state import State, StateError, load_state, prune_seen, save_state
@@ -32,6 +33,8 @@ def build_parser() -> argparse.ArgumentParser:
                         help="Scrape and save raw articles only; skip summarization")
     parser.add_argument("--summary-mode", choices=["per-article", "digest", "both"],
                         help="Override the configured summary mode")
+    parser.add_argument("--console-output", choices=["article-text"],
+                        help="Also write scraped articles to stdout")
     parser.add_argument("--limit", type=int,
                         help="Process at most N articles (testing aid)")
     parser.add_argument("--sections",
@@ -121,6 +124,10 @@ def run(config: Config, state: State, args: argparse.Namespace) -> RunResult:
                                      config.model, config.concurrency)
     write_summaries_json(result, config)
     write_markdown_report(result, config)
+    if args.console_output == "article-text":
+        rendered = render_articles_text(result.articles)
+        if rendered:
+            print(rendered)
 
     if args.limit is not None:
         print("Note: --limit was set — this is a non-destructive sample run; "

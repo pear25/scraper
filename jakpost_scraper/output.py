@@ -1,10 +1,10 @@
-"""Write run artifacts: raw articles JSON, summaries JSON, Markdown report."""
+"""Write run artifacts and optional console output."""
 
 import json
 import os
 
 from .config import Config
-from .models import RunResult, dt_to_iso
+from .models import Article, RunResult, dt_to_iso
 
 
 def articles_path(result: RunResult, config: Config) -> str:
@@ -17,6 +17,21 @@ def summaries_path(result: RunResult, config: Config) -> str:
 
 def report_path(result: RunResult, config: Config) -> str:
     return os.path.join(config.reports_dir, f"{result.run_id}.md")
+
+
+def render_articles_text(articles: list[Article]) -> str:
+    """Render scraped articles as stable stdout text blocks."""
+    blocks: list[str] = []
+    for article in articles:
+        blocks.append(
+            "\n".join([
+                f"Title: {article.title}",
+                f"URL: {article.url}",
+                "Body:",
+                article.body,
+            ]).rstrip()
+        )
+    return "\n\n---\n\n".join(blocks)
 
 
 def write_articles_json(result: RunResult, config: Config) -> str:

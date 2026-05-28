@@ -79,3 +79,42 @@ def test_path_defaults_are_none_before_resolution():
     assert cfg.data_dir is None
     assert cfg.reports_dir is None
     assert cfg.state_file is None
+
+
+def test_load_config_fills_in_platform_defaults_when_unset(tmp_path, monkeypatch):
+    """When YAML omits paths and CLI overrides them, load_config falls back
+    to the platform defaults from paths.py."""
+    from jakpost_scraper.paths import (
+        default_data_dir, default_reports_dir, default_state_file,
+    )
+    monkeypatch.delenv("JAKPOST_DATA_DIR", raising=False)
+    monkeypatch.delenv("JAKPOST_REPORTS_DIR", raising=False)
+    yaml = tmp_path / "config.yaml"
+    yaml.write_text("summary_mode: digest\n")
+    cfg = load_config(str(yaml), {})
+    assert cfg.data_dir == str(default_data_dir())
+    assert cfg.reports_dir == str(default_reports_dir())
+    assert cfg.state_file == str(default_state_file())
+
+
+def test_load_config_yaml_path_overrides_default(tmp_path, monkeypatch):
+    monkeypatch.delenv("JAKPOST_DATA_DIR", raising=False)
+    yaml = tmp_path / "config.yaml"
+    yaml.write_text("data_dir: /tmp/mydata\n")
+    cfg = load_config(str(yaml), {})
+    assert cfg.data_dir == "/tmp/mydata"
+
+
+def test_load_config_cli_override_wins(tmp_path):
+    yaml = tmp_path / "config.yaml"
+    yaml.write_text("data_dir: /tmp/yamlpath\n")
+    cfg = load_config(str(yaml), {"data_dir": "/tmp/cli_path"})
+    assert cfg.data_dir == "/tmp/cli_path"
+
+
+def test_load_config_env_var_used_when_yaml_silent(tmp_path, monkeypatch):
+    monkeypatch.setenv("JAKPOST_DATA_DIR", "/tmp/from_env")
+    yaml = tmp_path / "config.yaml"
+    yaml.write_text("")
+    cfg = load_config(str(yaml), {})
+    assert cfg.data_dir == "/tmp/from_env"

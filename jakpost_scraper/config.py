@@ -5,6 +5,8 @@ from dataclasses import dataclass, fields
 
 import yaml
 
+from . import paths
+
 SUMMARY_MODES = ("per-article", "digest", "both")
 PAYWALL_MODES = ("keep-teaser", "skip")
 
@@ -34,7 +36,12 @@ class Config:
 
 
 def load_config(config_path: str | None, cli_overrides: dict) -> Config:
-    """Build a Config from defaults, an optional YAML file, then CLI overrides."""
+    """Build a Config from defaults, an optional YAML file, then CLI overrides.
+
+    After merging, fill in any unset path fields (data_dir, reports_dir,
+    state_file) from paths.resolve_* — which honors env vars and platform
+    defaults. CLI overrides and YAML values both win over the resolver.
+    """
     values: dict = {}
     if config_path and os.path.exists(config_path):
         with open(config_path, encoding="utf-8") as f:
@@ -50,6 +57,15 @@ def load_config(config_path: str | None, cli_overrides: dict) -> Config:
 
     values.update({k: v for k, v in cli_overrides.items() if v is not None})
     cfg = Config(**values)
+
+    # Resolve path fields: anything still None gets the env/default treatment.
+    if cfg.data_dir is None:
+        cfg.data_dir = str(paths.resolve_data_dir(explicit_path=None))
+    if cfg.reports_dir is None:
+        cfg.reports_dir = str(paths.resolve_reports_dir(explicit_path=None))
+    if cfg.state_file is None:
+        cfg.state_file = str(paths.default_state_file())
+
     validate_config(cfg)
     return cfg
 

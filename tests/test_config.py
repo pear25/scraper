@@ -127,3 +127,24 @@ def test_load_config_cli_override_wins_over_env(tmp_path, monkeypatch):
     yaml.write_text("")
     cfg = load_config(str(yaml), {"data_dir": "/tmp/from_cli"})
     assert cfg.data_dir == "/tmp/from_cli"
+
+
+def test_state_file_follows_data_dir_override(tmp_path, monkeypatch):
+    """When data_dir is redirected, state.json moves with it so dedup
+    stays coherent across runs in the new location."""
+    monkeypatch.delenv("JAKPOST_DATA_DIR", raising=False)
+    yaml = tmp_path / "config.yaml"
+    yaml.write_text("")
+    cfg = load_config(str(yaml), {"data_dir": str(tmp_path / "custom")})
+    assert cfg.data_dir == str(tmp_path / "custom")
+    assert cfg.state_file == str(tmp_path / "custom" / "state.json")
+
+
+def test_state_file_follows_data_dir_env_var(tmp_path, monkeypatch):
+    """JAKPOST_DATA_DIR also pulls state.json along."""
+    monkeypatch.setenv("JAKPOST_DATA_DIR", str(tmp_path / "envdata"))
+    yaml = tmp_path / "config.yaml"
+    yaml.write_text("")
+    cfg = load_config(str(yaml), {})
+    assert cfg.data_dir == str(tmp_path / "envdata")
+    assert cfg.state_file == str(tmp_path / "envdata" / "state.json")

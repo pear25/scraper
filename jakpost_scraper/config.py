@@ -2,6 +2,7 @@
 
 import os
 from dataclasses import dataclass, fields
+from pathlib import Path
 
 import yaml
 
@@ -59,12 +60,14 @@ def load_config(config_path: str | None, cli_overrides: dict) -> Config:
     cfg = Config(**values)
 
     # Resolve path fields: anything still None gets the env/default treatment.
+    # state_file follows data_dir — if the user redirects data with --data-dir
+    # or JAKPOST_DATA_DIR, state.json moves with it so dedup stays coherent.
     if cfg.data_dir is None:
         cfg.data_dir = str(paths.resolve_data_dir(explicit_path=None))
     if cfg.reports_dir is None:
         cfg.reports_dir = str(paths.resolve_reports_dir(explicit_path=None))
     if cfg.state_file is None:
-        cfg.state_file = str(paths.default_state_file())
+        cfg.state_file = str(Path(cfg.data_dir) / "state.json")
 
     validate_config(cfg)
     return cfg

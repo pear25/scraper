@@ -6,6 +6,7 @@ import sys
 
 from .auth import AuthError, ensure_session
 from .config import Config, ConfigError, load_config
+from . import paths
 from .discovery import DiscoveryError, compute_window, discover, parse_since_arg
 from .http_client import HttpClient
 from .models import RunResult, dt_to_iso, now_utc
@@ -18,8 +19,6 @@ from .scraper import scrape_articles
 from .state import State, StateError, load_state, prune_seen, save_state
 from .summarizer import PreflightError, preflight_check, summarize
 
-CONFIG_PATH = "config.yaml"
-
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
@@ -28,6 +27,15 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--since",
                         help="Window start: an ISO date or a duration like 24h/3d")
+    parser.add_argument("--config",
+                        help="Path to config.yaml (overrides env JAKPOST_CONFIG "
+                             "and platform default)")
+    parser.add_argument("--data-dir",
+                        help="Directory for state.json + articles/ + summaries/ "
+                             "(overrides env JAKPOST_DATA_DIR and platform default)")
+    parser.add_argument("--reports-dir",
+                        help="Directory for Markdown reports (overrides env "
+                             "JAKPOST_REPORTS_DIR and platform default)")
     parser.add_argument("--dry-run", action="store_true",
                         help="List what would be scraped; no scrape/summarize/state write")
     parser.add_argument("--no-summary", action="store_true",
@@ -52,7 +60,9 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def cli_overrides(args: argparse.Namespace) -> dict:
-    """Extract config overrides (summary_mode, sections, auth) from parsed args."""
+    """Extract config overrides (summary_mode, sections, auth, paths) from
+    parsed args. None values are filtered out by load_config so unset flags
+    don't clobber YAML/env values."""
     overrides: dict = {}
     if args.summary_mode is not None:
         overrides["summary_mode"] = args.summary_mode
@@ -61,6 +71,10 @@ def cli_overrides(args: argparse.Namespace) -> dict:
                                  if s.strip()]
     if args.auth is not None:
         overrides["auth_enabled"] = args.auth
+    if args.data_dir is not None:
+        overrides["data_dir"] = args.data_dir
+    if args.reports_dir is not None:
+        overrides["reports_dir"] = args.reports_dir
     return overrides
 
 
@@ -180,7 +194,15 @@ def main(argv: list[str] | None = None) -> int:
     """Parse arguments, run the pipeline, return a process exit code."""
     args = build_parser().parse_args(argv)
     try:
-        config = load_config(CONFIG_PATH, cli_overrides(args))
+        config_path = paths.resolve_config_path(args.config)
+        # First-run UX: if the resolved path doesn't exist and it's the
+        # platform default, write the shipped default config there.
+        if (not config_path.exists()
+                and config_path == paths.default_config_path()):
+            if paths.ensure_default_config(config_path):
+                print(f"Wrote default config to {config_path}",
+                      file=sys.stderr)
+        config = load_config(str(config_path), cli_overrides(args))
         if args.reset_state:
             try:
                 os.remove(config.state_file)

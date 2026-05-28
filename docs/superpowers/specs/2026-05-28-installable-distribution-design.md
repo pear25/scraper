@@ -160,7 +160,8 @@ separate CDN. Users can read the script before piping to `sh`.
 - Tighten metadata: `license`, `readme = "README.md"`, `authors`, `urls`
   (Homepage, Repository, Issues), `classifiers` (Python versions, OS,
   license).
-- Bump version for the release that includes these changes.
+- Keep `version = "0.1.0"` for the first PyPI release (per user
+  decision 2026-05-28).
 
 ### [jakpost_scraper/config.py](../../../jakpost_scraper/config.py)
 

@@ -121,3 +121,31 @@ def test_resolve_treats_empty_string_as_explicit_not_unset(tmp_path, monkeypatch
     assert resolve_config_path(explicit_path="") == Path("")
     assert resolve_data_dir(explicit_path="") == Path("")
     assert resolve_reports_dir(explicit_path="") == Path("")
+
+
+def test_ensure_default_config_writes_when_missing(tmp_path, monkeypatch):
+    from jakpost_scraper.paths import (
+        DEFAULT_CONFIG_YAML, ensure_default_config,
+    )
+    target = tmp_path / "config.yaml"
+    written = ensure_default_config(target)
+    assert written is True
+    assert target.read_text() == DEFAULT_CONFIG_YAML
+    assert target.parent.exists()
+
+
+def test_ensure_default_config_no_op_when_present(tmp_path):
+    from jakpost_scraper.paths import ensure_default_config
+    target = tmp_path / "config.yaml"
+    target.write_text("existing: 1\n")
+    written = ensure_default_config(target)
+    assert written is False
+    assert target.read_text() == "existing: 1\n"
+
+
+def test_ensure_default_config_creates_parent_dirs(tmp_path):
+    from jakpost_scraper.paths import ensure_default_config
+    target = tmp_path / "nested" / "deeper" / "config.yaml"
+    written = ensure_default_config(target)
+    assert written is True
+    assert target.exists()

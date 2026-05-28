@@ -90,3 +90,35 @@ def resolve_reports_dir(explicit_path: str | None) -> Path:
     if env:
         return Path(env)
     return default_reports_dir()
+
+
+DEFAULT_CONFIG_YAML = """\
+# Jakarta Post scraper configuration. All keys are optional; defaults shown.
+sections: all              # "all" or a list of section identifiers
+summary_mode: both         # per-article | digest | both
+model: claude-haiku-4-5    # Claude model for summarization
+paywall: keep-teaser       # keep-teaser | skip
+request_delay: 1.0         # seconds between HTTP requests
+concurrency: 4             # max concurrent article fetches / summary calls
+lookback_buffer_minutes: 20
+seen_url_retention_days: 30
+http_timeout: 15           # seconds
+http_retries: 3            # attempts per request
+
+# Authenticated scraping (optional; off by default).
+# Set JAKPOST_EMAIL and JAKPOST_PASSWORD environment variables to use it.
+# auth_enabled: false
+# auth_login_url: "https://www.thejakartapost.com/user/account/login"
+"""
+
+
+def ensure_default_config(path: Path) -> bool:
+    """Write the shipped default config to `path` if it doesn't exist.
+
+    Returns True if a file was written, False if one already existed.
+    Creates parent directories as needed."""
+    if path.exists():
+        return False
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(DEFAULT_CONFIG_YAML)
+    return True

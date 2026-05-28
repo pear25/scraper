@@ -1,6 +1,7 @@
 """Article page scraping and field extraction."""
 
 import json
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 
@@ -149,19 +150,24 @@ def _extract_body(soup: BeautifulSoup) -> str:
 
 
 def scrape_articles(http: HttpClient, discovered: list[DiscoveredArticle],
-                    concurrency: int, paywall_mode: str
+                    concurrency: int, paywall_mode: str,
+                    on_progress: Callable[[int, int, str, bool], None] | None = None
                     ) -> tuple[list[Article], list[str], list[str]]:
     """Fetch and parse discovered articles concurrently.
 
     Returns (articles, failed_urls, skipped_paywall_urls). With
     paywall_mode="skip", paywalled articles are excluded and their URLs go to
     skipped_paywall_urls; with "keep-teaser" they are kept in articles.
+
+    on_progress, if given, is invoked as (done, total, url, ok) each time an
+    article fetch completes — ok is False when the fetch raised.
     """
     if not discovered:
         return [], [], []
 
     results: dict[str, Article] = {}
     failed_urls: list[str] = []
+    total = len(discovered)
 
     def _fetch(item: DiscoveredArticle) -> Article:
         html = http.get(item.url).text
@@ -169,12 +175,16 @@ def scrape_articles(http: HttpClient, discovered: list[DiscoveredArticle],
 
     with ThreadPoolExecutor(max_workers=max(1, concurrency)) as pool:
         future_map = {pool.submit(_fetch, d): d for d in discovered}
-        for future in as_completed(future_map):
+        for done, future in enumerate(as_completed(future_map), start=1):
             item = future_map[future]
             try:
                 results[item.url] = future.result()
+                ok = True
             except Exception:  # noqa: BLE001 - any failure means skip this article
                 failed_urls.append(item.url)
+                ok = False
+            if on_progress is not None:
+                on_progress(done, total, item.url, ok)
 
     articles: list[Article] = []
     skipped_paywall_urls: list[str] = []

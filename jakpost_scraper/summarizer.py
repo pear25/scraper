@@ -2,6 +2,7 @@
 
 import asyncio
 import shutil
+from collections.abc import Callable
 
 from claude_agent_sdk import ClaudeAgentOptions, query
 
@@ -35,37 +36,63 @@ def preflight_check() -> None:
 
 
 def summarize(articles: list[Article], mode: str, model: str,
-              concurrency: int) -> list[Summary]:
-    """Summarize articles in the given mode. Synchronous entry point."""
+              concurrency: int,
+              on_progress: Callable[[int, int, str, bool], None] | None = None,
+              on_digest: Callable[[str], None] | None = None
+              ) -> list[Summary]:
+    """Summarize articles in the given mode. Synchronous entry point.
+
+    on_progress is invoked as (done, total, url, ok) after each per-article
+    summary completes. on_digest is invoked as (stage) with "start"/"end" around
+    digest generation.
+    """
     if not articles:
         return []
-    return asyncio.run(_run(articles, mode, model, concurrency))
+    return asyncio.run(
+        _run(articles, mode, model, concurrency, on_progress, on_digest))
 
 
-async def _run(articles: list[Article], mode: str, model: str,
-               concurrency: int) -> list[Summary]:
+async def _run(articles: list[Article], mode: str, model: str, concurrency: int,
+               on_progress: Callable[[int, int, str, bool], None] | None,
+               on_digest: Callable[[str], None] | None
+               ) -> list[Summary]:
     semaphore = asyncio.Semaphore(max(1, concurrency))
+    total = len(articles)
+    counter = {"done": 0}
+
+    def _report(article: Article, ok: bool) -> None:
+        counter["done"] += 1
+        if on_progress is not None:
+            on_progress(counter["done"], total, article.url, ok)
+
     per_article = await asyncio.gather(
-        *[_summarize_one(a, model, semaphore) for a in articles]
+        *[_summarize_one(a, model, semaphore, _report) for a in articles]
     )
     summaries: list[Summary] = []
     if mode in ("per-article", "both"):
         summaries.extend(per_article)
     if mode in ("digest", "both"):
+        if on_digest is not None:
+            on_digest("start")
         summaries.append(await _summarize_digest(per_article, model))
+        if on_digest is not None:
+            on_digest("end")
     return summaries
 
 
 async def _summarize_one(article: Article, model: str,
-                         semaphore: asyncio.Semaphore) -> Summary:
+                         semaphore: asyncio.Semaphore,
+                         report: Callable[[Article, bool], None]) -> Summary:
     async with semaphore:
         prompt = _per_article_prompt(article)
         try:
             text = await _retry(lambda: _ask_claude(prompt, model))
         except Exception as e:  # noqa: BLE001 - record failure, keep going
+            report(article, False)
             return Summary(kind="per-article", text="", model=model,
                            generated_at=now_utc(), article_urls=[article.url],
                            error=str(e))
+        report(article, True)
         return Summary(kind="per-article", text=text, model=model,
                        generated_at=now_utc(), article_urls=[article.url])
 

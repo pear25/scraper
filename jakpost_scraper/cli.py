@@ -13,6 +13,7 @@ from .output import (
     render_articles_text, report_path, write_articles_json,
     write_markdown_report, write_summaries_json,
 )
+from .progress import log, phase, progress
 from .scraper import scrape_articles
 from .state import State, StateError, load_state, prune_seen, save_state
 from .summarizer import PreflightError, preflight_check, summarize
@@ -90,22 +91,39 @@ def run(config: Config, state: State, args: argparse.Namespace) -> RunResult:
 
     cookies = None
     if config.auth_enabled:
-        cookies = ensure_session(config, force_reauth=args.reauth)
+        with phase("Authentication") as ph:
+            cookies = ensure_session(config, force_reauth=args.reauth)
+            ph["summary"] = "session ready"
 
     with HttpClient(config.http_timeout, config.http_retries,
                     config.request_delay, cookies=cookies) as http:
-        discovered, skipped_sections = discover(
-            http, config.sections, since, until, set(state.seen_urls))
-        result.skipped_sections = skipped_sections
-        result.discovered = len(discovered)
-        if args.limit is not None:
-            discovered = discovered[:args.limit]
+        with phase("Article Discovery") as ph:
+            log(f"Window: {dt_to_iso(since)}  →  {dt_to_iso(until)}")
+            discovered, skipped_sections = discover(
+                http, config.sections, since, until, set(state.seen_urls))
+            result.skipped_sections = skipped_sections
+            result.discovered = len(discovered)
+            if args.limit is not None:
+                discovered = discovered[:args.limit]
+                log(f"--limit {args.limit}: trimming to first "
+                    f"{len(discovered)} article(s)")
+            skipped_note = (f", {len(skipped_sections)} section(s) skipped"
+                            if skipped_sections else "")
+            ph["summary"] = f"{result.discovered} article(s) discovered{skipped_note}"
         if args.dry_run:
             for item in discovered:
                 print(f"{dt_to_iso(item.published_at)}  {item.section}  {item.url}")
             return result
-        articles, failed_urls, skipped_paywall = scrape_articles(
-            http, discovered, config.concurrency, config.paywall)
+        with phase("Article Scrape") as ph:
+            log(f"Scraping {len(discovered)} article(s) with "
+                f"concurrency={config.concurrency}, paywall={config.paywall}...")
+            articles, failed_urls, skipped_paywall = scrape_articles(
+                http, discovered, config.concurrency, config.paywall,
+                on_progress=lambda done, total, url, ok: progress(
+                    done, total, f"{'scraped' if ok else 'FAILED '} {url}"))
+            ph["summary"] = (
+                f"{len(articles)} kept, {len(skipped_paywall)} paywalled, "
+                f"{len(failed_urls)} failed")
         if config.auth_enabled and _session_looks_dead(articles):
             raise AuthError(
                 "Most premium articles came back truncated — the session has "
@@ -119,11 +137,25 @@ def run(config: Config, state: State, args: argparse.Namespace) -> RunResult:
         1 for a in articles if a.is_premium and not a.is_truncated)
 
     write_articles_json(result, config)  # persist before summarizing
+    log(f"Wrote raw articles JSON ({result.scraped} article(s)).")
     if do_summarize:
-        result.summaries = summarize(articles, config.summary_mode,
-                                     config.model, config.concurrency)
-    write_summaries_json(result, config)
-    write_markdown_report(result, config)
+        with phase("Summarization") as ph:
+            log(f"Summarizing {len(articles)} article(s) in mode="
+                f"{config.summary_mode} with model={config.model}...")
+            result.summaries = summarize(
+                articles, config.summary_mode, config.model, config.concurrency,
+                on_progress=lambda done, total, url, ok: progress(
+                    done, total,
+                    f"{'summarized' if ok else 'FAILED    '} {url}"),
+                on_digest=lambda stage: log(
+                    "  Building digest..." if stage == "start"
+                    else "  Digest complete."))
+            errors = sum(1 for s in result.summaries if s.error)
+            ph["summary"] = f"{len(result.summaries)} summary record(s), {errors} error(s)"
+    with phase("Write Outputs") as ph:
+        write_summaries_json(result, config)
+        write_markdown_report(result, config)
+        ph["summary"] = f"report → {report_path(result, config)}"
     if args.console_output == "article-text":
         rendered = render_articles_text(result.articles)
         if rendered:

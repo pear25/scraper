@@ -118,3 +118,12 @@ def test_load_config_env_var_used_when_yaml_silent(tmp_path, monkeypatch):
     yaml.write_text("")
     cfg = load_config(str(yaml), {})
     assert cfg.data_dir == "/tmp/from_env"
+
+
+def test_load_config_cli_override_wins_over_env(tmp_path, monkeypatch):
+    """CLI explicit value must beat env var, which beats YAML, which beats default."""
+    monkeypatch.setenv("JAKPOST_DATA_DIR", "/tmp/from_env")
+    yaml = tmp_path / "config.yaml"
+    yaml.write_text("")
+    cfg = load_config(str(yaml), {"data_dir": "/tmp/from_cli"})
+    assert cfg.data_dir == "/tmp/from_cli"

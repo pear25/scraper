@@ -37,8 +37,72 @@ def test_default_state_file_is_inside_data_dir():
 
 def test_default_reports_dir_uses_documents_folder():
     from jakpost_scraper.paths import default_reports_dir
+    import platformdirs
     p = default_reports_dir()
     assert isinstance(p, Path)
-    # On all three platforms platformdirs.user_documents_dir() ends with
-    # "Documents". Reports dir is a subfolder named jakpost-reports.
-    assert p.name == "jakpost-reports"
+    assert p == Path(platformdirs.user_documents_dir()) / "jakpost-reports"
+
+
+def test_resolve_config_path_prefers_explicit(tmp_path, monkeypatch):
+    from jakpost_scraper.paths import resolve_config_path
+    explicit = tmp_path / "x.yaml"
+    explicit.write_text("")
+    monkeypatch.setenv("JAKPOST_CONFIG", str(tmp_path / "ignored.yaml"))
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "config.yaml").write_text("")
+    result = resolve_config_path(explicit_path=str(explicit))
+    assert result == explicit
+
+
+def test_resolve_config_path_uses_env_when_no_explicit(tmp_path, monkeypatch):
+    from jakpost_scraper.paths import resolve_config_path
+    env_path = tmp_path / "from_env.yaml"
+    env_path.write_text("")
+    monkeypatch.setenv("JAKPOST_CONFIG", str(env_path))
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "config.yaml").write_text("")
+    result = resolve_config_path(explicit_path=None)
+    assert result == env_path
+
+
+def test_resolve_config_path_uses_cwd_when_config_yaml_present(
+        tmp_path, monkeypatch):
+    from jakpost_scraper.paths import resolve_config_path
+    monkeypatch.delenv("JAKPOST_CONFIG", raising=False)
+    cwd_config = tmp_path / "config.yaml"
+    cwd_config.write_text("")
+    monkeypatch.chdir(tmp_path)
+    result = resolve_config_path(explicit_path=None)
+    assert result == cwd_config
+
+
+def test_resolve_config_path_falls_back_to_platform_default(
+        tmp_path, monkeypatch):
+    from jakpost_scraper.paths import default_config_path, resolve_config_path
+    monkeypatch.delenv("JAKPOST_CONFIG", raising=False)
+    monkeypatch.chdir(tmp_path)  # no config.yaml in cwd
+    result = resolve_config_path(explicit_path=None)
+    assert result == default_config_path()
+
+
+def test_resolve_data_dir_priority_order(tmp_path, monkeypatch):
+    from jakpost_scraper.paths import default_data_dir, resolve_data_dir
+    monkeypatch.delenv("JAKPOST_DATA_DIR", raising=False)
+    # No explicit, no env -> platform default
+    assert resolve_data_dir(explicit_path=None) == default_data_dir()
+    # Env wins over default
+    monkeypatch.setenv("JAKPOST_DATA_DIR", str(tmp_path / "envdata"))
+    assert resolve_data_dir(explicit_path=None) == tmp_path / "envdata"
+    # Explicit wins over env
+    explicit = tmp_path / "explicit"
+    assert resolve_data_dir(explicit_path=str(explicit)) == explicit
+
+
+def test_resolve_reports_dir_priority_order(tmp_path, monkeypatch):
+    from jakpost_scraper.paths import default_reports_dir, resolve_reports_dir
+    monkeypatch.delenv("JAKPOST_REPORTS_DIR", raising=False)
+    assert resolve_reports_dir(explicit_path=None) == default_reports_dir()
+    monkeypatch.setenv("JAKPOST_REPORTS_DIR", str(tmp_path / "envreports"))
+    assert resolve_reports_dir(explicit_path=None) == tmp_path / "envreports"
+    explicit = tmp_path / "exp"
+    assert resolve_reports_dir(explicit_path=str(explicit)) == explicit

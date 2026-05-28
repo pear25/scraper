@@ -57,7 +57,7 @@ def resolve_config_path(explicit_path: str | None) -> Path:
     exists > platform default. Returns the chosen Path even if it doesn't
     exist on disk (load_config decides what to do with that).
     """
-    if explicit_path:
+    if explicit_path is not None:
         return Path(explicit_path)
     env = os.environ.get(ENV_CONFIG)
     if env:
@@ -69,8 +69,12 @@ def resolve_config_path(explicit_path: str | None) -> Path:
 
 
 def resolve_data_dir(explicit_path: str | None) -> Path:
-    """Resolve the data directory. Order: explicit > env > platform default."""
-    if explicit_path:
+    """Resolve the data directory. Order: explicit > env > platform default.
+
+    There is no cwd fallback for data — only config.yaml triggers cwd-mode
+    (so a project-local config.yaml drags state/data along with it via
+    load_config's resolution; see resolve_config_path)."""
+    if explicit_path is not None:
         return Path(explicit_path)
     env = os.environ.get(ENV_DATA_DIR)
     if env:
@@ -80,7 +84,7 @@ def resolve_data_dir(explicit_path: str | None) -> Path:
 
 def resolve_reports_dir(explicit_path: str | None) -> Path:
     """Resolve the reports directory. Order: explicit > env > platform default."""
-    if explicit_path:
+    if explicit_path is not None:
         return Path(explicit_path)
     env = os.environ.get(ENV_REPORTS_DIR)
     if env:

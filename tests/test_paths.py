@@ -106,3 +106,18 @@ def test_resolve_reports_dir_priority_order(tmp_path, monkeypatch):
     assert resolve_reports_dir(explicit_path=None) == tmp_path / "envreports"
     explicit = tmp_path / "exp"
     assert resolve_reports_dir(explicit_path=str(explicit)) == explicit
+
+
+def test_resolve_treats_empty_string_as_explicit_not_unset(tmp_path, monkeypatch):
+    """An empty string must NOT be treated as 'no value' — None is the only
+    sentinel for unset. This prevents Path('') from silently becoming Path('.')."""
+    from jakpost_scraper.paths import (
+        resolve_config_path, resolve_data_dir, resolve_reports_dir,
+    )
+    monkeypatch.setenv("JAKPOST_CONFIG", str(tmp_path / "from_env.yaml"))
+    monkeypatch.setenv("JAKPOST_DATA_DIR", str(tmp_path / "from_env_data"))
+    monkeypatch.setenv("JAKPOST_REPORTS_DIR", str(tmp_path / "from_env_reports"))
+    # Explicit "" wins over the env vars — does NOT fall through.
+    assert resolve_config_path(explicit_path="") == Path("")
+    assert resolve_data_dir(explicit_path="") == Path("")
+    assert resolve_reports_dir(explicit_path="") == Path("")

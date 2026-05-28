@@ -2,8 +2,11 @@
 
 import os
 from dataclasses import dataclass, fields
+from pathlib import Path
 
 import yaml
+
+from . import paths
 
 SUMMARY_MODES = ("per-article", "digest", "both")
 PAYWALL_MODES = ("keep-teaser", "skip")
@@ -25,16 +28,21 @@ class Config:
     seen_url_retention_days: int = 30
     http_timeout: int = 15
     http_retries: int = 3
-    data_dir: str = "./data"
-    reports_dir: str = "./reports"
-    state_file: str = "./state.json"
+    data_dir: str | None = None      # resolved by paths.resolve_data_dir
+    reports_dir: str | None = None   # resolved by paths.resolve_reports_dir
+    state_file: str | None = None    # resolved by paths.resolve_state_file
     auth_enabled: bool = False
     auth_login_url: str = "https://www.thejakartapost.com/user/account/login"
     auth_cookies_file: str = "./.auth/cookies.json"
 
 
 def load_config(config_path: str | None, cli_overrides: dict) -> Config:
-    """Build a Config from defaults, an optional YAML file, then CLI overrides."""
+    """Build a Config from defaults, an optional YAML file, then CLI overrides.
+
+    After merging, fill in any unset path fields (data_dir, reports_dir,
+    state_file) from paths.resolve_* — which honors env vars and platform
+    defaults. CLI overrides and YAML values both win over the resolver.
+    """
     values: dict = {}
     if config_path and os.path.exists(config_path):
         with open(config_path, encoding="utf-8") as f:
@@ -50,6 +58,17 @@ def load_config(config_path: str | None, cli_overrides: dict) -> Config:
 
     values.update({k: v for k, v in cli_overrides.items() if v is not None})
     cfg = Config(**values)
+
+    # Resolve path fields: anything still None gets the env/default treatment.
+    # state_file follows data_dir — if the user redirects data with --data-dir
+    # or JAKPOST_DATA_DIR, state.json moves with it so dedup stays coherent.
+    if cfg.data_dir is None:
+        cfg.data_dir = str(paths.resolve_data_dir(explicit_path=None))
+    if cfg.reports_dir is None:
+        cfg.reports_dir = str(paths.resolve_reports_dir(explicit_path=None))
+    if cfg.state_file is None:
+        cfg.state_file = str(Path(cfg.data_dir) / "state.json")
+
     validate_config(cfg)
     return cfg
 

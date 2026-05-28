@@ -90,3 +90,66 @@ def test_session_ok_when_no_premium_articles():
     from jakpost_scraper.cli import _session_looks_dead
     arts = [_article(False, False), _article(False, False)]
     assert _session_looks_dead(arts) is False
+
+
+def test_config_flag_parses():
+    args = build_parser().parse_args(["--config", "/tmp/c.yaml"])
+    assert args.config == "/tmp/c.yaml"
+
+
+def test_data_dir_flag_parses():
+    args = build_parser().parse_args(["--data-dir", "/tmp/d"])
+    assert args.data_dir == "/tmp/d"
+
+
+def test_reports_dir_flag_parses():
+    args = build_parser().parse_args(["--reports-dir", "/tmp/r"])
+    assert args.reports_dir == "/tmp/r"
+
+
+def test_path_flags_default_to_none():
+    args = build_parser().parse_args([])
+    assert args.config is None
+    assert args.data_dir is None
+    assert args.reports_dir is None
+
+
+def test_cli_overrides_passes_through_path_flags():
+    args = build_parser().parse_args(
+        ["--data-dir", "/tmp/d", "--reports-dir", "/tmp/r"])
+    overrides = cli_overrides(args)
+    assert overrides["data_dir"] == "/tmp/d"
+    assert overrides["reports_dir"] == "/tmp/r"
+
+
+def test_cli_overrides_omits_unset_path_flags():
+    args = build_parser().parse_args([])
+    overrides = cli_overrides(args)
+    assert "data_dir" not in overrides
+    assert "reports_dir" not in overrides
+
+
+def test_upgrade_flag_parses():
+    args = build_parser().parse_args(["--upgrade"])
+    assert args.upgrade is True
+
+
+def test_update_alias_parses():
+    args = build_parser().parse_args(["--update"])
+    assert args.upgrade is True
+
+
+def test_upgrade_default_false():
+    args = build_parser().parse_args([])
+    assert args.upgrade is False
+
+
+def test_main_with_upgrade_prints_command_and_exits_zero(capsys):
+    from jakpost_scraper.cli import main
+    rc = main(["--upgrade"])
+    assert rc == 0
+    captured = capsys.readouterr()
+    out = captured.out + captured.err
+    assert "uv tool upgrade jakpost-scraper" in out
+    assert "install.sh" in out
+    assert "install.ps1" in out

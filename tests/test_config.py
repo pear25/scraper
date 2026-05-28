@@ -70,3 +70,12 @@ def test_auth_keys_load_from_yaml(tmp_path):
     path.write_text("auth_enabled: true\n")
     cfg = load_config(str(path), {})
     assert cfg.auth_enabled is True
+
+
+def test_path_defaults_are_none_before_resolution():
+    """data_dir/reports_dir/state_file should default to None so load_config
+    can distinguish unset from explicitly set."""
+    cfg = Config()
+    assert cfg.data_dir is None
+    assert cfg.reports_dir is None
+    assert cfg.state_file is None

@@ -25,9 +25,9 @@ class Config:
     seen_url_retention_days: int = 30
     http_timeout: int = 15
     http_retries: int = 3
-    data_dir: str = "./data"
-    reports_dir: str = "./reports"
-    state_file: str = "./state.json"
+    data_dir: str | None = None      # resolved by paths.resolve_data_dir
+    reports_dir: str | None = None   # resolved by paths.resolve_reports_dir
+    state_file: str | None = None    # resolved by paths.resolve_state_file
     auth_enabled: bool = False
     auth_login_url: str = "https://www.thejakartapost.com/user/account/login"
     auth_cookies_file: str = "./.auth/cookies.json"

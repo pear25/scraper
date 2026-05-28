@@ -19,6 +19,16 @@ from .scraper import scrape_articles
 from .state import State, StateError, load_state, prune_seen, save_state
 from .summarizer import PreflightError, preflight_check, summarize
 
+UPGRADE_MESSAGE = """\
+To upgrade jakpost-scraper, run:
+
+  uv tool upgrade jakpost-scraper
+
+Or re-run the installer:
+  macOS/Linux:  curl -fsSL https://raw.githubusercontent.com/pear25/scraper/main/install.sh | sh
+  Windows:      irm https://raw.githubusercontent.com/pear25/scraper/main/install.ps1 | iex
+"""
+
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
@@ -56,6 +66,10 @@ def build_parser() -> argparse.ArgumentParser:
                         help="Force a fresh login even if a session is cached")
     parser.add_argument("--reset-state", action="store_true",
                         help="Delete state.json so the next run re-fetches all articles")
+    parser.add_argument("--upgrade", "--update", dest="upgrade",
+                        action="store_true",
+                        help="Print the upgrade command and exit (does not run "
+                             "a scrape)")
     return parser
 
 
@@ -193,6 +207,9 @@ def run(config: Config, state: State, args: argparse.Namespace) -> RunResult:
 def main(argv: list[str] | None = None) -> int:
     """Parse arguments, run the pipeline, return a process exit code."""
     args = build_parser().parse_args(argv)
+    if args.upgrade:
+        print(UPGRADE_MESSAGE)
+        return 0
     try:
         config_path = paths.resolve_config_path(args.config)
         # First-run UX: if the resolved path doesn't exist and it's the

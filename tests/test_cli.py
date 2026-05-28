@@ -127,3 +127,29 @@ def test_cli_overrides_omits_unset_path_flags():
     overrides = cli_overrides(args)
     assert "data_dir" not in overrides
     assert "reports_dir" not in overrides
+
+
+def test_upgrade_flag_parses():
+    args = build_parser().parse_args(["--upgrade"])
+    assert args.upgrade is True
+
+
+def test_update_alias_parses():
+    args = build_parser().parse_args(["--update"])
+    assert args.upgrade is True
+
+
+def test_upgrade_default_false():
+    args = build_parser().parse_args([])
+    assert args.upgrade is False
+
+
+def test_main_with_upgrade_prints_command_and_exits_zero(capsys):
+    from jakpost_scraper.cli import main
+    rc = main(["--upgrade"])
+    assert rc == 0
+    captured = capsys.readouterr()
+    out = captured.out + captured.err
+    assert "uv tool upgrade jakpost-scraper" in out
+    assert "install.sh" in out
+    assert "install.ps1" in out
